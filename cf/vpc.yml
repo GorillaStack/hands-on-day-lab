@@ -1,0 +1,568 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: A 6 subnet VPC, with an internet gateway and NAT gateway service
+Parameters:
+  # Build control settings
+  BuildEnv:
+    Type: String
+    Description: 'The environment of the build prod | test | dev (default dev)'
+    AllowedValues:
+      - dev
+      - test
+      - preprod
+      - prod
+    Default: dev
+
+  # Region specific settings
+  AZ1:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Description: The first AWS availability zone for this region
+    Default: ap-southeast-2a
+  AZ2:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Description: The second AWS availability zone for this region
+    Default: ap-southeast-2b
+  AZ3:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Description: The third AWS availability zone for this region
+    Default: ap-southeast-2c
+
+  # Networking & CIDR blocks
+  VPCCIDRBlock:
+    Type: String
+    Description: The CIDR block for the VPC
+    Default: 10.32.0.0/16
+  AccountLocalCIDRBlock:
+    Type: String
+    Description: The CIDR block for all VPCs of this environment
+    Default: 10.32.0.0/12
+
+  # Now, let's divide our address space into 6 pieces.
+  # 1 for each subnet and 2 unallocated (just incase).
+  AZ1PublicCIDRBlock:
+    Type: String
+    Description: The CIDR block for the first public subnet of our VPC
+    Default: 10.32.0.0/19
+  AZ2PublicCIDRBlock:
+    Type: String
+    Description: The CIDR block for the second public subnet of our VPC
+    Default: 10.32.32.0/19
+  AZ3PublicCIDRBlock:
+    Type: String
+    Description: The CIDR block for the third public subnet of our VPC
+    Default: 10.32.64.0/19
+  AZ1PrivateCIDRBlock:
+    Type: String
+    Description: The CIDR block for the first private subnet of our VPC
+    Default: 10.32.96.0/19
+  AZ2PrivateCIDRBlock:
+    Type: String
+    Description: The CIDR block for the second private subnet of our VPC
+    Default: 10.32.128.0/19
+  AZ3PrivateCIDRBlock:
+    Type: String
+    Description: The CIDR block for the third private subnet of our VPC
+    Default: 10.32.160.0/19
+
+Conditions:
+  IsThisProduction: !Equals [ !Ref BuildEnv, prod ]
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCIDRBlock
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+      - Key: Name
+        Value: !Sub
+          - ${StackName}-vpc
+          - { StackName: !Ref "AWS::StackName" }
+      - Key: ApplicationId
+        Value: n/a
+      - Key: Application Role
+        Value: networking
+      - Key: Environment
+        Value: production
+      - Key: Owner
+        Value: ops
+      - Key: Cost Centre
+        Value: ops
+  AZ1PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock: !Ref AZ1PublicCIDRBlock
+      AvailabilityZone: !Ref AZ1
+      MapPublicIpOnLaunch: 'true'
+      Tags:
+      - Key: Name
+        Value: !Sub
+          - ${StackName}-public-subnet-1
+          - { StackName: !Ref "AWS::StackName" }
+      - Key: ApplicationId
+        Value: n/a
+      - Key: Application Role
+        Value: networking
+      - Key: Environment
+        Value: production
+      - Key: Owner
+        Value: ops
+      - Key: Cost Centre
+        Value: ops
+  AZ2PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock: !Ref AZ2PublicCIDRBlock
+      AvailabilityZone: !Ref AZ2
+      MapPublicIpOnLaunch: 'true'
+      Tags:
+      - Key: Name
+        Value: !Sub
+          - ${StackName}-public-subnet-2
+          - { StackName: !Ref "AWS::StackName" }
+      - Key: ApplicationId
+        Value: n/a
+      - Key: Application Role
+        Value: networking
+      - Key: Environment
+        Value: production
+      - Key: Owner
+        Value: ops
+      - Key: Cost Centre
+        Value: ops
+  AZ3PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock: !Ref AZ3PublicCIDRBlock
+      AvailabilityZone: !Ref AZ3
+      MapPublicIpOnLaunch: 'true'
+      Tags:
+      - Key: Name
+        Value: !Sub
+          - ${StackName}-public-subnet-3
+          - { StackName: !Ref "AWS::StackName" }
+      - Key: ApplicationId
+        Value: n/a
+      - Key: Application Role
+        Value: networking
+      - Key: Environment
+        Value: production
+      - Key: Owner
+        Value: ops
+      - Key: Cost Centre
+        Value: ops
+  AZ1PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock: !Ref AZ1PrivateCIDRBlock
+      AvailabilityZone: !Ref AZ1
+      Tags:
+      - Key: Name
+        Value: !Sub
+          - ${StackName}-private-subnet-1
+          - { StackName: !Ref "AWS::StackName" }
+      - Key: ApplicationId
+        Value: n/a
+      - Key: Application Role
+        Value: networking
+      - Key: Environment
+        Value: production
+      - Key: Owner
+        Value: ops
+      - Key: Cost Centre
+        Value: ops
+  AZ2PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock: !Ref AZ2PrivateCIDRBlock
+      AvailabilityZone: !Ref AZ2
+      Tags:
+      - Key: Name
+        Value: !Sub
+          - ${StackName}-private-subnet-2
+          - { StackName: !Ref "AWS::StackName" }
+      - Key: ApplicationId
+        Value: n/a
+      - Key: Application Role
+        Value: networking
+      - Key: Environment
+        Value: production
+      - Key: Owner
+        Value: ops
+      - Key: Cost Centre
+        Value: ops
+  AZ3PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock: !Ref AZ3PrivateCIDRBlock
+      AvailabilityZone: !Ref AZ3
+      Tags:
+      - Key: Name
+        Value: !Sub
+          - ${StackName}-private-subnet-3
+          - { StackName: !Ref "AWS::StackName" }
+      - Key: ApplicationId
+        Value: n/a
+      - Key: Application Role
+        Value: networking
+      - Key: Environment
+        Value: production
+      - Key: Owner
+        Value: ops
+      - Key: Cost Centre
+        Value: ops
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Sub
+          - ${StackName}-igw
+          - { StackName: !Ref "AWS::StackName" }
+      - Key: ApplicationId
+        Value: n/a
+      - Key: Application Role
+        Value: networking
+      - Key: Environment
+        Value: production
+      - Key: Owner
+        Value: ops
+      - Key: Cost Centre
+        Value: ops
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
+
+  # Routing for Public Subnets
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn: VPC
+    Properties:
+      VpcId:
+        Ref: VPC
+  PublicRoute:
+      Type: AWS::EC2::Route
+      DependsOn: AttachGateway
+      Properties:
+        RouteTableId:
+          Ref: PublicRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId:
+          Ref: InternetGateway
+  AZ1PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AZ1PublicSubnet
+      RouteTableId:
+        Ref: PublicRouteTable
+  AZ2PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AZ2PublicSubnet
+      RouteTableId:
+        Ref: PublicRouteTable
+  AZ3PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AZ3PublicSubnet
+      RouteTableId:
+        Ref: PublicRouteTable
+
+  # Create Elastic IPs for NAT Gateways
+  EIPPublicSubnetAZ1:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  EIPPublicSubnetAZ2:
+    Type: AWS::EC2::EIP
+    Condition: IsThisProduction
+    Properties:
+      Domain: vpc
+
+  EIPPublicSubnetAZ3:
+    Type: AWS::EC2::EIP
+    Condition: IsThisProduction
+    Properties:
+      Domain: vpc
+
+  # Create NAT Gateways
+  NATGatewayAZ1:
+    DependsOn: AttachGateway
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+        - EIPPublicSubnetAZ1
+        - AllocationId
+      SubnetId: !Ref AZ1PublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - ${StackName}-nat-gateway-az1
+            - { StackName: !Ref "AWS::StackName" }
+        - Key: ApplicationId
+          Value: n/a
+        - Key: Application Role
+          Value: networking
+        - Key: Environment
+          Value: production
+        - Key: Owner
+          Value: ops
+        - Key: Cost Centre
+          Value: ops
+
+  NATGatewayAZ2:
+    DependsOn: AttachGateway
+    Condition: IsThisProduction
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+        - EIPPublicSubnetAZ2
+        - AllocationId
+      SubnetId: !Ref AZ2PublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - ${StackName}-nat-gateway-az2
+            - { StackName: !Ref "AWS::StackName" }
+        - Key: ApplicationId
+          Value: n/a
+        - Key: Application Role
+          Value: networking
+        - Key: Environment
+          Value: production
+        - Key: Owner
+          Value: ops
+        - Key: Cost Centre
+          Value: ops
+
+  NATGatewayAZ3:
+    DependsOn: AttachGateway
+    Condition: IsThisProduction
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+        - EIPPublicSubnetAZ3
+        - AllocationId
+      SubnetId: !Ref AZ3PublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - ${StackName}-nat-gateway-az3
+            - { StackName: !Ref "AWS::StackName" }
+        - Key: ApplicationId
+          Value: n/a
+        - Key: Application Role
+          Value: networking
+        - Key: Environment
+          Value: production
+        - Key: Owner
+          Value: ops
+        - Key: Cost Centre
+          Value: ops
+
+  # Routing for Private Subnets
+  PrivateRouteTableAZ1:
+    Type: AWS::EC2::RouteTable
+    DependsOn: VPC
+    Properties:
+      VpcId:
+        Ref: VPC
+  PrivateRouteTableAZ2:
+    Type: AWS::EC2::RouteTable
+    DependsOn: VPC
+    Condition: IsThisProduction
+    Properties:
+      VpcId:
+        Ref: VPC
+  PrivateRouteTableAZ3:
+    Type: AWS::EC2::RouteTable
+    DependsOn: VPC
+    Condition: IsThisProduction
+    Properties:
+      VpcId:
+        Ref: VPC
+  NATGatewayPrivateRouteAZ1:
+    Type: AWS::EC2::Route
+    DependsOn: NATGatewayAZ1
+    Properties:
+      RouteTableId:
+        Ref: PrivateRouteTableAZ1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NATGatewayAZ1
+  NATGatewayPrivateRouteAZ2:
+    Type: AWS::EC2::Route
+    Condition: IsThisProduction
+    DependsOn: NATGatewayAZ2
+    Properties:
+      RouteTableId:
+        Ref: PrivateRouteTableAZ2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NATGatewayAZ2
+  NATGatewayPrivateRouteAZ3:
+    Type: AWS::EC2::Route
+    Condition: IsThisProduction
+    DependsOn: NATGatewayAZ3
+    Properties:
+      RouteTableId:
+        Ref: PrivateRouteTableAZ3
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NATGatewayAZ3
+  AZ1PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AZ1PrivateSubnet
+      RouteTableId:
+        Ref: PrivateRouteTableAZ1
+  AZ2PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AZ2PrivateSubnet
+      RouteTableId: !If [IsThisProduction, !Ref PrivateRouteTableAZ2, !Ref PrivateRouteTableAZ1]
+  AZ3PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AZ3PrivateSubnet
+      RouteTableId: !If [IsThisProduction, !Ref PrivateRouteTableAZ3, !Ref PrivateRouteTableAZ1]
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Instances security group
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+        # Let's allow SSH from inside all peered subnets
+      - IpProtocol: tcp
+        FromPort: '0'
+        ToPort: '65535'
+        CidrIp: !Ref AccountLocalCIDRBlock
+      - IpProtocol: udp
+        FromPort: '0'
+        ToPort: '65535'
+        CidrIp: !Ref AccountLocalCIDRBlock
+      - IpProtocol: icmp
+        FromPort: '-1'
+        ToPort: '-1'
+        # Let's allow pings etc from inside all peered subnets
+        CidrIp: !Ref AccountLocalCIDRBlock
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: '443'
+        ToPort: '443'
+        CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+      - IpProtocol: -1
+        FromPort: '0'
+        ToPort: '0'
+        CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - ${StackName}-blackbox-ec2-sg
+            - { StackName: !Ref "AWS::StackName" }
+        - Key: ApplicationId
+          Value: n/a
+        - Key: Application Role
+          Value: networking
+        - Key: Environment
+          Value: production
+        - Key: Owner
+          Value: ops
+        - Key: Cost Centre
+          Value: ops
+Outputs:
+  AZ1PublicSubnet:
+    Description: AZ1PublicSubnet subnet id
+    Value: !Ref AZ1PublicSubnet
+    Export:
+      Name: !Sub
+        - ${StackName}-az1-public-subnet
+        - { StackName: !Ref "AWS::StackName" }
+  AZ2PublicSubnet:
+    Description: AZ2PublicSubnet subnet id
+    Value: !Ref AZ2PublicSubnet
+    Export:
+      Name: !Sub
+        - ${StackName}-az2-public-subnet
+        - { StackName: !Ref "AWS::StackName" }
+  AZ3PublicSubnet:
+    Description: AZ3PublicSubnet subnet id
+    Value: !Ref AZ3PublicSubnet
+    Export:
+      Name: !Sub
+        - ${StackName}-az3-public-subnet
+        - { StackName: !Ref "AWS::StackName" }
+  AZ1PrivateSubnet:
+    Description: AZ1PrivateSubnet subnet id
+    Value: !Ref AZ1PrivateSubnet
+    Export:
+      Name: !Sub
+        - ${StackName}-az1-private-subnet
+        - { StackName: !Ref "AWS::StackName" }
+  AZ2PrivateSubnet:
+    Description: AZ2PrivateSubnet subnet id
+    Value: !Ref AZ2PrivateSubnet
+    Export:
+      Name: !Sub
+        - ${StackName}-az2-private-subnet
+        - { StackName: !Ref "AWS::StackName" }
+  AZ3PrivateSubnet:
+    Description: AZ3PrivateSubnet subnet id
+    Value: !Ref AZ3PrivateSubnet
+    Export:
+      Name: !Sub
+        - ${StackName}-az3-private-subnet
+        - { StackName: !Ref "AWS::StackName" }
+  VPC:
+    Description: VPC id
+    Value: !Ref VPC
+    Export:
+      Name: !Sub
+        - ${StackName}-vpc-id
+        - { StackName: !Ref "AWS::StackName" }
+  VPCCIDRBlock:
+    Description: VPC CIDR block
+    Value: !Ref VPCCIDRBlock
+    Export:
+      Name: !Sub
+        - ${StackName}-vpc-cidr-block
+        - { StackName: !Ref "AWS::StackName" }
+  AccountLocalCIDRBlock:
+    Description: Account local cidr block
+    Value: !Ref AccountLocalCIDRBlock
+    Export:
+      Name: !Sub
+        - ${StackName}-account-local-cidr-block
+        - { StackName: !Ref "AWS::StackName" }
+  InstanceSecurityGroup:
+    Description: Instance security group
+    Value: !Ref InstanceSecurityGroup
+    Export:
+      Name: !Sub
+        - ${StackName}-instance-security-group-id
+        - { StackName: !Ref "AWS::StackName" }
