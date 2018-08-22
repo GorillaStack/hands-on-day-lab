@@ -114,28 +114,27 @@ Resources:
         - Fn::ImportValue: !Sub
             - "${NStack}-instance-security-group-id"
             - { NStack: !Ref VPCStackName }
-      InstanceType: m5.large
-      BlockDeviceMappings: 
-        - DeviceName: "/dev/sda1"
-          Ebs: 
-            VolumeSize: "50"
-            VolumeType: "io1"
-            Iops: 200
-        - DeviceName: "/dev/sdm"
-          Ebs: 
-            VolumeSize: "100"
-            DeleteOnTermination: "true"
+      InstanceType: t2.small
 
   AutoScalingGroup1:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties: 
-      AvailabilityZones: 
-        Fn::GetAZs: 
-          !Ref "AWS::Region"
       LaunchConfigurationName: !Ref LaunchConfig
       MaxSize: "9"
       DesiredCapacity: "3"
       MinSize: "1"
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 900
+      VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub
+          - "${NStack}-az1-private-subnet"
+          - { NStack: !Ref VPCStackName }
+        - Fn::ImportValue: !Sub
+          - "${NStack}-az2-private-subnet"
+          - { NStack: !Ref VPCStackName }
+        - Fn::ImportValue: !Sub
+          - "${NStack}-az3-private-subnet"
+          - { NStack: !Ref VPCStackName }
       Tags:
         - Key: Name
           Value: App ASG [prod]
@@ -159,13 +158,22 @@ Resources:
   AutoScalingGroup2:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties: 
-      AvailabilityZones: 
-        Fn::GetAZs: 
-          !Ref "AWS::Region"
       LaunchConfigurationName: !Ref LaunchConfig
       MaxSize: "3"
       DesiredCapacity: "2"
       MinSize: "1"
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 900
+      VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub
+          - "${NStack}-az1-private-subnet"
+          - { NStack: !Ref VPCStackName }
+        - Fn::ImportValue: !Sub
+          - "${NStack}-az2-private-subnet"
+          - { NStack: !Ref VPCStackName }
+        - Fn::ImportValue: !Sub
+          - "${NStack}-az3-private-subnet"
+          - { NStack: !Ref VPCStackName }
       Tags:
         - Key: Name
           Value: App ASG [preprod]
@@ -189,13 +197,22 @@ Resources:
   AutoScalingGroup3:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties: 
-      AvailabilityZones: 
-        Fn::GetAZs: 
-          !Ref "AWS::Region"
       LaunchConfigurationName: !Ref LaunchConfig
       MaxSize: "3"
       DesiredCapacity: "2"
       MinSize: "1"
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 900
+      VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub
+          - "${NStack}-az1-private-subnet"
+          - { NStack: !Ref VPCStackName }
+        - Fn::ImportValue: !Sub
+          - "${NStack}-az2-private-subnet"
+          - { NStack: !Ref VPCStackName }
+        - Fn::ImportValue: !Sub
+          - "${NStack}-az3-private-subnet"
+          - { NStack: !Ref VPCStackName }
       Tags:
         - Key: Name
           Value: App ASG [development]

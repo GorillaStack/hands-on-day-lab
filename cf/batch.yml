@@ -7,10 +7,6 @@ Parameters:
   DockerImage:
     Type: String
     Description: The docker image to be run to consume jobs
-  EnvironmentName:
-    Type: String
-    Description: The environment we are creating.  Correlates to parameters from parameter store
-    Default: unmanaged
 
 Resources:
   AWSBatchServiceRole:
@@ -194,7 +190,7 @@ Resources:
     Type: AWS::Batch::JobDefinition
     Properties:
       Type: container
-      JobDefinitionName: Batch Job
+      JobDefinitionName: BatchJob
       Timeout:
         AttemptDurationSeconds: 900
       RetryStrategy:
