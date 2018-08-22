@@ -1,4 +1,4 @@
-# hands on day lab 4
+# hands on day 3 - lab 4
 
 Here is some awesome content for the people coming along to the AWS Hands on Day 3.
 
