@@ -1,0 +1,356 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: All the resources for our demo
+Parameters:
+  VPCStackName:
+    Type: String
+    Description: Name of the VPC stack
+    Default: vpc
+  DBUser:
+    Type: String
+    Description: Database user
+    Default: db_user
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Description: Database password
+Mappings:
+  ec2SettingsByRegion:
+    ap-southeast-2:
+      ami: ami-00e17d1165b9dd3ec
+
+Resources:
+  Standalone1: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId:
+        Fn::FindInMap:
+          - ec2SettingsByRegion
+          - !Ref AWS::Region
+          - ami
+      InstanceType: m5.large
+      KeyName: hod_lab
+      SubnetId:
+        Fn::ImportValue: !Sub
+          - "${NStack}-az3-private-subnet"
+          - { NStack: !Ref VPCStackName }
+      SecurityGroupIds:
+        - Fn::ImportValue: !Sub
+            - "${NStack}-instance-security-group-id"
+            - { NStack: !Ref VPCStackName }
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/sdm"
+          Ebs: 
+            VolumeType: "io1"
+            Iops: "200"
+            DeleteOnTermination: "false"
+            VolumeSize: "200"
+        - DeviceName: "/dev/sdk"
+          NoDevice: {}
+      Tags:
+        - Key: Name
+          Value: Standalone instance 1
+        - Key: ApplicationId
+          Value: adobe aem
+        - Key: Application Role
+          Value: cms
+        - Key: Environment
+          Value: staging
+        - Key: Owner
+          Value: Tom Hardy
+        - Key: Cost Centre
+          Value: data
+
+  Standalone2:
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId:
+        Fn::FindInMap:
+          - ec2SettingsByRegion
+          - !Ref AWS::Region
+          - ami
+      InstanceType: m5.large
+      KeyName: hod_lab
+      SubnetId:
+        Fn::ImportValue: !Sub
+          - "${NStack}-az2-private-subnet"
+          - { NStack: !Ref VPCStackName }
+      SecurityGroupIds:
+        - Fn::ImportValue: !Sub
+            - "${NStack}-instance-security-group-id"
+            - { NStack: !Ref VPCStackName }
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/sdm"
+          Ebs: 
+            VolumeType: "io1"
+            Iops: "200"
+            DeleteOnTermination: "false"
+            VolumeSize: "200"
+        - DeviceName: "/dev/sdk"
+          NoDevice: {}
+      Tags:
+        - Key: Name
+          Value: Standalone instance 2
+        - Key: ApplicationId
+          Value: adobe aem
+        - Key: Application Role
+          Value: cms
+        - Key: Environment
+          Value: development
+        - Key: Owner
+          Value: Tom Hardy
+        - Key: Cost Centre
+          Value: data
+
+  LaunchConfig: 
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties: 
+      KeyName: hod_lab 
+      ImageId:
+        Fn::FindInMap:
+          - ec2SettingsByRegion
+          - !Ref AWS::Region
+          - ami
+      SecurityGroups:
+        - Fn::ImportValue: !Sub
+            - "${NStack}-instance-security-group-id"
+            - { NStack: !Ref VPCStackName }
+      InstanceType: m5.large
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/sda1"
+          Ebs: 
+            VolumeSize: "50"
+            VolumeType: "io1"
+            Iops: 200
+        - DeviceName: "/dev/sdm"
+          Ebs: 
+            VolumeSize: "100"
+            DeleteOnTermination: "true"
+
+  AutoScalingGroup1:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties: 
+      AvailabilityZones: 
+        Fn::GetAZs: 
+          !Ref "AWS::Region"
+      LaunchConfigurationName: !Ref LaunchConfig
+      MaxSize: "9"
+      DesiredCapacity: "3"
+      MinSize: "1"
+      Tags:
+        - Key: Name
+          Value: App ASG [prod]
+          PropagateAtLaunch: true
+        - Key: ApplicationId
+          Value: application
+          PropagateAtLaunch: true
+        - Key: Application Role
+          Value: web server
+          PropagateAtLaunch: true
+        - Key: Environment
+          Value: production
+          PropagateAtLaunch: true
+        - Key: Owner
+          Value: Some Guy
+          PropagateAtLaunch: true
+        - Key: Cost Centre
+          Value: AppDev
+          PropagateAtLaunch: true
+
+  AutoScalingGroup2:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties: 
+      AvailabilityZones: 
+        Fn::GetAZs: 
+          !Ref "AWS::Region"
+      LaunchConfigurationName: !Ref LaunchConfig
+      MaxSize: "3"
+      DesiredCapacity: "2"
+      MinSize: "1"
+      Tags:
+        - Key: Name
+          Value: App ASG [preprod]
+          PropagateAtLaunch: true
+        - Key: ApplicationId
+          Value: application
+          PropagateAtLaunch: true
+        - Key: Application Role
+          Value: web server
+          PropagateAtLaunch: true
+        - Key: Environment
+          Value: preprod
+          PropagateAtLaunch: true
+        - Key: Owner
+          Value: Some Guy
+          PropagateAtLaunch: true
+        - Key: Cost Centre
+          Value: AppDev
+          PropagateAtLaunch: true
+
+  AutoScalingGroup3:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties: 
+      AvailabilityZones: 
+        Fn::GetAZs: 
+          !Ref "AWS::Region"
+      LaunchConfigurationName: !Ref LaunchConfig
+      MaxSize: "3"
+      DesiredCapacity: "2"
+      MinSize: "1"
+      Tags:
+        - Key: Name
+          Value: App ASG [development]
+          PropagateAtLaunch: true
+        - Key: ApplicationId
+          Value: application
+          PropagateAtLaunch: true
+        - Key: Application Role
+          Value: web server
+          PropagateAtLaunch: true
+        - Key: Environment
+          Value: development
+          PropagateAtLaunch: true
+        - Key: Owner
+          Value: Some Guy
+          PropagateAtLaunch: true
+        - Key: Cost Centre
+          Value: AppDev
+          PropagateAtLaunch: true
+
+  DB1:
+    Type: AWS::RDS::DBInstance
+    Properties: 
+      DBName: app_prod
+      AllocatedStorage: 25
+      DBInstanceClass: db.t2.micro
+      Engine: MySQL
+      EngineVersion: "5.7.22"
+      MasterUsername: !Ref DBUser
+      MasterUserPassword: !Ref DBPassword
+      Tags: 
+        - Key: Name
+          Value: app-db-prod
+        - Key: ApplicationId
+          Value: application
+        - Key: Application Role
+          Value: database
+        - Key: Environment
+          Value: production
+        - Key: Owner
+          Value: Some Guy
+        - Key: Cost Centre
+          Value: AppDev
+    DeletionPolicy: Snapshot
+
+  DB2:
+    Type: AWS::RDS::DBInstance
+    Properties: 
+      DBName: app_preprod
+      AllocatedStorage: 25
+      DBInstanceClass: db.t2.micro
+      Engine: MySQL
+      EngineVersion: "5.7.22"
+      MasterUsername: !Ref DBUser
+      MasterUserPassword: !Ref DBPassword
+      Tags: 
+        - Key: Name
+          Value: app-db-preprod
+        - Key: ApplicationId
+          Value: application
+        - Key: Application Role
+          Value: database
+        - Key: Environment
+          Value: preprod
+        - Key: Owner
+          Value: Some Guy
+        - Key: Cost Centre
+          Value: AppDev
+    DeletionPolicy: Snapshot
+
+  DynamoDBTable1:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      TableName: "ProdDynamoDBTable"
+      AttributeDefinitions: 
+        - 
+          AttributeName: "Album"
+          AttributeType: "S"
+        - 
+          AttributeName: "Artist"
+          AttributeType: "S"
+        - 
+          AttributeName: "Sales"
+          AttributeType: "N"
+        - 
+          AttributeName: "NumberOfSongs"
+          AttributeType: "N"
+      KeySchema: 
+        - 
+          AttributeName: "Album"
+          KeyType: "HASH"
+        - 
+          AttributeName: "Artist"
+          KeyType: "RANGE"
+      ProvisionedThroughput: 
+        ReadCapacityUnits: "5"
+        WriteCapacityUnits: "5"
+      GlobalSecondaryIndexes: 
+        - 
+          IndexName: "myGSI"
+          KeySchema: 
+            - 
+              AttributeName: "Sales"
+              KeyType: "HASH"
+            - 
+              AttributeName: "Artist"
+              KeyType: "RANGE"
+          Projection: 
+            NonKeyAttributes: 
+              - "Album"
+              - "NumberOfSongs"
+            ProjectionType: "INCLUDE"
+          ProvisionedThroughput: 
+            ReadCapacityUnits: "5"
+            WriteCapacityUnits: "5"
+        - 
+          IndexName: "myGSI2"
+          KeySchema: 
+            - 
+              AttributeName: "NumberOfSongs"
+              KeyType: "HASH"
+            - 
+              AttributeName: "Sales"
+              KeyType: "RANGE"
+          Projection: 
+            NonKeyAttributes: 
+              - "Album"
+              - "Artist"
+            ProjectionType: "INCLUDE"
+          ProvisionedThroughput: 
+            ReadCapacityUnits: "5"
+            WriteCapacityUnits: "5"
+      LocalSecondaryIndexes: 
+        - 
+          IndexName: "myLSI"
+          KeySchema: 
+            - 
+              AttributeName: "Album"
+              KeyType: "HASH"
+            - 
+              AttributeName: "Sales"
+              KeyType: "RANGE"
+          Projection: 
+            NonKeyAttributes: 
+              - "Artist"
+              - "NumberOfSongs"
+            ProjectionType: "INCLUDE"
+      Tags:
+        - Key: Name
+          Value: dynamo1
+        - Key: ApplicationId
+          Value: application
+        - Key: Application Role
+          Value: database
+        - Key: Environment
+          Value: preprod
+        - Key: Owner
+          Value: Some Guy

@@ -1,0 +1,217 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Example AWS Batch environment
+Parameters:
+  VPCStackName:
+    Type: String
+    Description: The name of the shared VPC stack, from where we will try retrieve exported values
+  DockerImage:
+    Type: String
+    Description: The docker image to be run to consume jobs
+  EnvironmentName:
+    Type: String
+    Description: The environment we are creating.  Correlates to parameters from parameter store
+    Default: unmanaged
+
+Resources:
+  AWSBatchServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: "batch.amazonaws.com"
+
+  AWSBatchSpotFleetIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+        ManagedPolicyArns:
+          - "arn:aws:iam::aws:policy/service-role/AmazonEC2SpotFleetTaggingRole"
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+              Action: "sts:AssumeRole"
+              Effect: "Allow"
+              Principal:
+                Service: "spotfleet.amazonaws.com"
+
+  AWSBatchInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+        ManagedPolicyArns:
+          - "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+        AssumeRolePolicyDocument:
+          Version: "2008-10-17"
+          Statement:
+            Action: "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service: "ec2.amazonaws.com"
+
+  AWSBatchInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref AWSBatchInstanceRole
+
+  AWSBatchJobRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Effect: Allow
+          Principal:
+            Service:
+              - "ecs-tasks.amazonaws.com"
+              - "ecs.amazonaws.com"
+          Action:
+            - "sts:AssumeRole"
+      Path: "/"
+
+  BatchJobRolePermissions:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref AWSBatchJobRole
+      PolicyName: AssumeRoles
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: Allow
+            Resource:
+              - "*"
+
+  AWSBatchComputeEnvironmentSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: HA Traffic
+      VpcId:
+        Fn::ImportValue: !Sub
+        - "${NStack}-vpc-id"
+        - { NStack: !Ref VPCStackName }
+      # SecurityGroupIngress:
+      SecurityGroupEgress:
+      - IpProtocol: -1
+        FromPort: '0'
+        ToPort: '0'
+        CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: AWSBatchComputeEnvironmentSecurityGroup
+
+  OnDemandComputeEnvironment:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      Type: MANAGED
+      ComputeEnvironmentName: on_demand
+      ComputeResources:
+        Type: EC2
+        MaxvCpus: 128
+        MinvCpus: 0
+        DesiredvCpus: 4
+        InstanceRole: !Ref AWSBatchInstanceProfile
+        InstanceTypes:
+          - optimal
+        SecurityGroupIds:
+          - !Ref AWSBatchComputeEnvironmentSecurityGroup
+        Subnets:
+          - Fn::ImportValue: !Sub
+            - "${NStack}-az1-private-subnet"
+            - { NStack: !Ref VPCStackName }
+          - Fn::ImportValue: !Sub
+            - "${NStack}-az2-private-subnet"
+            - { NStack: !Ref VPCStackName }
+          - Fn::ImportValue: !Sub
+            - "${NStack}-az3-private-subnet"
+            - { NStack: !Ref VPCStackName }
+        Tags: {"Name": "Compute Environment [High Priority][On Demand]"}
+      ServiceRole: !Ref AWSBatchServiceRole
+      State: ENABLED
+
+  SpotComputeEnvironment:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      Type: MANAGED
+      ComputeEnvironmentName: spot
+      ComputeResources:
+        Type: SPOT
+        BidPercentage: 30
+        MaxvCpus: 256
+        MinvCpus: 0
+        DesiredvCpus: 0
+        SpotIamFleetRole: !Ref AWSBatchSpotFleetIamRole
+        InstanceRole: !Ref AWSBatchInstanceProfile
+        InstanceTypes:
+          - optimal
+        SecurityGroupIds:
+          - !Ref AWSBatchComputeEnvironmentSecurityGroup
+        Subnets:
+          - Fn::ImportValue: !Sub
+            - "${NStack}-az1-private-subnet"
+            - { NStack: !Ref VPCStackName }
+          - Fn::ImportValue: !Sub
+            - "${NStack}-az2-private-subnet"
+            - { NStack: !Ref VPCStackName }
+          - Fn::ImportValue: !Sub
+            - "${NStack}-az3-private-subnet"
+            - { NStack: !Ref VPCStackName }
+        Tags: {"Name": "Compute Environment [Low Priority][Spot]"}
+      ServiceRole: !Ref AWSBatchServiceRole
+      State: ENABLED
+
+  HighPriorityJobQueue:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      JobQueueName: HighPriority
+      Priority: 10
+      ComputeEnvironmentOrder:
+        - Order: 1
+          ComputeEnvironment: !Ref OnDemandComputeEnvironment
+        - Order: 2
+          ComputeEnvironment: !Ref SpotComputeEnvironment
+      State: ENABLED
+
+  LowPriorityJobQueue:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      JobQueueName: LowPriority
+      Priority: 1
+      ComputeEnvironmentOrder:
+        - Order: 1
+          ComputeEnvironment: !Ref SpotComputeEnvironment
+      State: ENABLED
+
+  Job:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      Type: container
+      JobDefinitionName: Batch Job
+      Timeout:
+        AttemptDurationSeconds: 900
+      RetryStrategy:
+        Attempts: 1
+      Parameters:
+        jobArguments: 'command line arguments'
+      ContainerProperties:
+        Vcpus: 1
+        Memory: 1000
+        Image: !Ref DockerImage
+        Command:
+          - run-job
+          - Ref::jobArguments
+        JobRoleArn: !Ref AWSBatchJobRole
+        Privileged: true
+        ReadonlyRootFilesystem: true
+        Environment:
+          -
+            Name: NODE_ENV
+            Value: development
